@@ -1,23 +1,15 @@
-import { MongoClient, ServerApiVersion, Db } from "mongodb";
-
-export let mongoDatabase: Db;
+import { connect } from "mongoose";
 
 export async function connectToDatabase() {
   const DATABASE_URI = process.env.DATABASE_URI || "";
-  const DATABASE_NAME = process.env.DATABASE_NAME || "";
-
-  const client = new MongoClient(DATABASE_URI, {
-    serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    },
-  });
+  const DATABASE_NAME = process.env.DATABASE_NAME || "mongodb";
 
   try {
-    await client.connect();
+    const connection = await connect(DATABASE_URI, {
+      dbName: DATABASE_NAME,
+    });
     console.log("Connected to MongoDB");
-    mongoDatabase = await client.db(DATABASE_NAME);
+    return connection;
   } catch (error) {
     console.error(error);
     throw error;

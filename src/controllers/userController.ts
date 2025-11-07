@@ -1,4 +1,3 @@
-import { ObjectId } from "mongodb";
 import { Request, Response } from "express";
 import {
   createUser,
@@ -7,7 +6,8 @@ import {
   updateUser,
   deleteUser,
 } from "../services/userService";
-import { UserDto } from "../types/user";
+import { UserDto, UserDtoSchema } from "../models/user";
+import { toObjectId } from "../utils/objectId";
 
 export async function getUsersController(_req: Request, res: Response) {
   try {
@@ -24,12 +24,19 @@ export async function createUserController(
   res: Response
 ) {
   try {
-    const { name, email, phone } = req.body;
-    const user = await createUser({ name, email, phone });
+    const isValid = UserDtoSchema.safeParse(req.body);
+
+    if (!isValid.success) {
+      return res.status(400).json({
+        errors: isValid.error.issues.map((issue) => issue.message),
+      });
+    }
+
+    const user = await createUser(isValid.data);
+
     res.status(201).json(user);
   } catch (error) {
-    res.status(500).json({ message: "Error creating user" });
-    console.error(error);
+    res.status(500).json({ message: "Error creating user", error });
   }
 }
 
@@ -38,15 +45,16 @@ export async function getUserByIdController(
   res: Response
 ) {
   try {
-    const { id } = req.params;
-    const user = await getUserById(new ObjectId(id));
+    const id = toObjectId(req.params.id);
+    const user = await getUserById(id);
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching user" });
-    console.error(error);
+    res.status(500).json({ message: "Error fetching user", error });
   }
 }
 
@@ -55,9 +63,16 @@ export async function updateUserController(
   res: Response
 ) {
   try {
-    const { id } = req.params;
-    const { name, email, phone } = req.body;
-    const user = await updateUser(new ObjectId(id), { name, email, phone });
+    const isValid = UserDtoSchema.safeParse(req.body);
+
+    if (!isValid.success) {
+      return res.status(400).json({
+        errors: isValid.error.issues.map((issue) => issue.message),
+      });
+    }
+
+    const id = toObjectId(req.params.id);
+    const user = await updateUser(id, isValid.data);
     res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: "Error updating user" });
@@ -71,7 +86,7 @@ export async function deleteUserController(
 ) {
   try {
     const { id } = req.params;
-    await deleteUser(new ObjectId(id));
+    await deleteUser(toObjectId(id));
     res.status(200).json({ message: "User deleted" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting user" });
